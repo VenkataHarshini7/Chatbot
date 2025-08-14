@@ -1,0 +1,84 @@
+{
+  "tables": [
+    {
+      "table": {
+        "schema": "public",
+        "name": "chats"
+      },
+      "select_permissions": [
+        {
+          "role": "user",
+          "permission": {
+            "columns": [
+              "id",
+              "title",
+              "user_id",
+              "created_at"
+            ],
+            "filter": {
+              "user_id": {
+                "_eq": "X-Hasura-User-Id"
+              }
+            }
+          }
+        }
+      ],
+      "insert_permissions": [
+        {
+          "role": "user",
+          "permission": {
+            "columns": [
+              "title"
+            ],
+            "preset": {
+              "user_id": "X-Hasura-User-Id"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "table": {
+        "schema": "public",
+        "name": "messages"
+      },
+      "select_permissions": [
+        {
+          "role": "user",
+          "permission": {
+            "columns": [
+              "id",
+              "chat_id",
+              "user_id",
+              "role",
+              "content",
+              "created_at"
+            ],
+            "filter": {
+              "chat": {
+                "user_id": {
+                  "_eq": "X-Hasura-User-Id"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "insert_permissions": [
+        {
+          "role": "user",
+          "permission": {
+            "columns": [
+              "chat_id",
+              "content",
+              "role"
+            ],
+            "preset": {
+              "user_id": "X-Hasura-User-Id"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

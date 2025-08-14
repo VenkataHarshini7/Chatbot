@@ -1,0 +1,3 @@
+input SendMessageInput { chat_id: uuid!, message_id: uuid! }
+type SendMessageOutput { success: Boolean!, reply_message_id: uuid, reply_content: String }
+type Mutation { sendMessage(input: SendMessageInput!): SendMessageOutput }

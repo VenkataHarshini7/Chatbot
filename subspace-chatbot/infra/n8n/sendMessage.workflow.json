@@ -1,0 +1,179 @@
+{
+  "name": "Hasura \u2192 n8n \u2192 OpenRouter \u2192 Hasura Reply",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hasura-send-message"
+      },
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{$env.HASURA_GRAPHQL_URL}}",
+        "options": {},
+        "body": {
+          "query": "query GetChatOwner($chat_id: uuid!) { chats_by_pk(id: $chat_id) { user_id } messages_by_pk(id: $message_id) { id content } }",
+          "variables": {
+            "chat_id": "={{$json[\"input\"][\"chat_id\"]}}",
+            "message_id": "={{$json[\"input\"][\"message_id\"]}}"
+          }
+        },
+        "headerParametersJson": "[{\"name\":\"x-hasura-admin-secret\",\"value\":\"={{$env.HASURA_GRAPHQL_ADMIN_SECRET}}\"}]"
+      },
+      "name": "Get Chat Owner & Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json[\"data\"][\"chats_by_pk\"][\"user_id\"]}}",
+              "operation": "equal",
+              "value2": "={{$json[\"session_variables\"][\"x-hasura-user-id\"]}}"
+            }
+          ]
+        }
+      },
+      "name": "Check Owner",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        760,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "https://api.openrouter.ai/v1/chat/completions",
+        "options": {},
+        "body": {
+          "model": "deepseek/deepseek-chat:free",
+          "messages": [
+            {
+              "role": "system",
+              "content": "You are a concise, helpful assistant."
+            },
+            {
+              "role": "user",
+              "content": "={{$json[\"data\"][\"messages_by_pk\"][\"content\"]}}"
+            }
+          ]
+        },
+        "headerParametersJson": "[{\"name\":\"Authorization\",\"value\":\"Bearer {{$env.OPENROUTER_API_KEY}}\"}]"
+      },
+      "name": "Call OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "={{$env.HASURA_GRAPHQL_URL}}",
+        "body": {
+          "query": "mutation InsertBotMessage($chat_id: uuid!, $content: String!) { insert_messages_one(object: { chat_id: $chat_id, content: $content, role: \"bot\" }) { id created_at } }",
+          "variables": {
+            "chat_id": "={{$json[\"input\"][\"chat_id\"]}}",
+            "content": "={{$json[\"choices\"][0][\"message\"][\"content\"]}}"
+          }
+        },
+        "headerParametersJson": "[{\"name\":\"x-hasura-admin-secret\",\"value\":\"={{$env.HASURA_GRAPHQL_ADMIN_SECRET}}\"}]"
+      },
+      "name": "Insert Bot Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "responseMode": "lastNode",
+        "responseData": "={{ { success: true, reply_content: $json[\"body\"][\"data\"][\"insert_messages_one\"] ? undefined : undefined } }}"
+      },
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Chat Owner & Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Chat Owner & Message": {
+      "main": [
+        [
+          {
+            "node": "Check Owner",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Owner": {
+      "main": [
+        [
+          {
+            "node": "Call OpenRouter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call OpenRouter": {
+      "main": [
+        [
+          {
+            "node": "Insert Bot Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Bot Message": {
+      "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
