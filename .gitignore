@@ -1,5 +1,9 @@
-node_modules
-dist
-build
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+build/
+
+# env files
 .env
-.DS_Store
