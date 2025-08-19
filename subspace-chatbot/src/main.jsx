@@ -1,6 +1,19 @@
 import React from 'react'
-import { createRoot } from 'react-dom/client'
+import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
-import './styles.css'
-const root = createRoot(document.getElementById('root'))
-root.render(<App />)
+import { NhostProvider } from '@nhost/react'
+import { nhost } from './nhostClient'
+import { ApolloProvider } from '@apollo/client'
+import { apollo } from './hasuraClient'
+import './index.css'
+
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <NhostProvider nhost={nhost}>
+      <ApolloProvider client={apollo}>
+        <App />
+      </ApolloProvider>
+    </NhostProvider>
+  </React.StrictMode>
+)

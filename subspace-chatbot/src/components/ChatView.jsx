@@ -1,45 +1,84 @@
-import React, { useEffect, useRef, useState } from 'react'
-import { useSubscription, useMutation } from '@apollo/client'
-import { GET_MESSAGES_SUB } from '../graphql/queries'
-import { INSERT_MESSAGE, CALL_SEND_MESSAGE_ACTION } from '../graphql/mutations'
+import React, { useState } from 'react'
+import { gql, useMutation, useSubscription } from '@apollo/client'
 
-export default function ChatView({ chatId }){
-  const { data, loading } = useSubscription(GET_MESSAGES_SUB, { variables: { chat_id: chatId } })
-  const [insertMessage] = useMutation(INSERT_MESSAGE)
-  const [callAction] = useMutation(CALL_SEND_MESSAGE_ACTION)
+const MESSAGES_SUB = gql`
+  subscription Messages($chatId: uuid!) {
+    messages(where: { chat_id: { _eq: $chatId } }, order_by: { created_at: asc }) {
+      id
+      role
+      content
+      created_at
+    }
+  }
+`
+
+const SEND_MESSAGE = gql`
+  mutation SendMessage($chatId: uuid!, $userId: uuid!, $content: String!) {
+    insert_messages_one(object: {
+      chat_id: $chatId,
+      user_id: $userId,
+      role: "user",
+      content: $content
+    }) {
+      id
+    }
+  }
+`
+
+export default function ChatView({ chatId, userId }) {
   const [text, setText] = useState('')
-  const listRef = useRef(null)
 
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [data])
+  const { data, loading } = useSubscription(MESSAGES_SUB, {
+    variables: { chatId }
+  })
 
-  async function send(){
-    if(!text.trim()) return
-    const res = await insertMessage({ variables: { chat_id: chatId, content: text.trim(), role: 'user' } })
-    const messageId = res.data.insert_messages_one.id
-    setText('')
-    await callAction({ variables: { input: { chat_id: chatId, message_id: messageId } } })
+  const [sendMessage, { loading: sending }] = useMutation(SEND_MESSAGE, {
+    onCompleted: () => setText('')
+  })
+
+  const handleSend = async () => {
+    if (!text.trim()) return
+    await sendMessage({
+      variables: { chatId, userId, content: text.trim() }
+    })
   }
 
   const messages = data?.messages ?? []
 
   return (
-    <div className="flex-1 h-full flex flex-col">
-      <div ref={listRef} className="flex-1 overflow-auto p-4 space-y-3">
+    <div className="flex flex-col h-[70vh]">
+      <div className="flex-1 overflow-y-auto space-y-2 mb-3 border rounded p-3">
         {loading && <div>Loading messages…</div>}
-        {messages.map(m => (
-          <div key={m.id} className={`max-w-prose ${m.role==='user'?'ml-auto text-right':''}`}>
-            <div className={`inline-block px-3 py-2 rounded-2xl ${m.role==='user'?'bg-indigo-600 text-white':'bg-gray-100'}`}>
-              <div className="whitespace-pre-wrap">{m.content}</div>
-            </div>
-            <div className="text-[10px] text-gray-500 mt-1">{new Date(m.created_at).toLocaleTimeString()}</div>
+        {!loading && messages.length === 0 && (
+          <div className="text-sm text-gray-500">No messages yet. Say hello!</div>
+        )}
+        {messages.map((m) => (
+          <div
+            key={m.id}
+            className={`rounded px-3 py-2 max-w-[80%] ${m.role === 'user' ? 'bg-blue-100 ml-auto' : 'bg-gray-100'}`}
+            title={new Date(m.created_at).toLocaleString()}
+          >
+            <div className="text-xs text-gray-500 mb-1">{m.role}</div>
+            <div>{m.content}</div>
           </div>
         ))}
       </div>
-      <div className="p-3 border-t flex gap-2">
-        <input className="flex-1 border rounded px-3 py-2" placeholder="Type your message…" value={text} onChange={e=>setText(e.target.value)} onKeyDown={e=>e.key==='Enter'&&send()} />
-        <button onClick={send} className="px-4 py-2 rounded bg-indigo-600 text-white">Send</button>
+
+      <div className="flex gap-2">
+        <input
+          className="border rounded px-3 py-2 flex-1"
+          placeholder="Type a message and press Enter"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+        />
+        <button
+          onClick={handleSend}
+          disabled={sending}
+          className="bg-blue-600 text-white rounded px-4 py-2"
+        >
+          Send
+        </button>
       </div>
     </div>
   )

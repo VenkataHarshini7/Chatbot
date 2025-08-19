@@ -1,39 +1,48 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
+import { useAuthenticationStatus, useUserId } from '@nhost/react'
 import Auth from './components/Auth'
 import ChatList from './components/ChatList'
 import ChatView from './components/ChatView'
-import { nhost } from './nhostClient'
-import { ApolloProvider } from '@apollo/client'
-import { apolloClient } from './hasuraClient'
 
-export default function App(){
-  const [ready, setReady] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [chatId, setChatId] = useState(null)
+export default function App() {
+  const { isAuthenticated, isLoading } = useAuthenticationStatus()
+  const userId = useUserId()
+  const [activeChatId, setActiveChatId] = useState(null)
 
-  useEffect(() => {
-    const unsub = nhost.auth.onAuthStateChanged((_event, session) => {
-      setIsAuthenticated(!!session)
-    })
-    setIsAuthenticated(!!nhost.auth.getSession())
-    setReady(true)
-    return () => unsub?.subscription?.unsubscribe?.()
-  }, [])
+  if (isLoading) return <div className="p-6">Loading...</div>
 
-  if(!ready) return <div className="p-6">Loading…</div>
-
-  if(!isAuthenticated){
-    return <Auth onAuth={()=>setIsAuthenticated(true)} />
+  if (!isAuthenticated) {
+    return (
+      <div className="p-6 max-w-md mx-auto">
+        <h1 className="text-2xl font-bold mb-4">🚀 Subspace Chatbot</h1>
+        <Auth />
+      </div>
+    )
   }
 
   return (
-    <ApolloProvider client={apolloClient}>
-      <div className="h-screen flex">
-        <ChatList currentChatId={chatId} onSelect={setChatId} />
-        {chatId ? <ChatView chatId={chatId} /> : (
-          <div className="flex-1 grid place-items-center text-gray-500">Select or create a chat</div>
-        )}
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">🚀 Subspace Chatbot</h1>
+      <p className="mb-4">Welcome! You are logged in.</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="md:col-span-1 border rounded p-3">
+          <ChatList
+            userId={userId}
+            activeChatId={activeChatId}
+            onSelectChat={setActiveChatId}
+            onChatCreated={(id) => setActiveChatId(id)}
+          />
+        </div>
+
+        <div className="md:col-span-2 border rounded p-3">
+          {activeChatId ? (
+            <ChatView chatId={activeChatId} userId={userId} />
+          ) : (
+            <div>Select a chat to start messaging.</div>
+          )}
+        </div>
       </div>
-    </ApolloProvider>
+    </div>
   )
 }

@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@apollo/client": "^3.10.0",
-    "@nhost/nhost-js": "^2.2.14",
+    "@nhost/nhost-js": "^2.2.18",
+    "@nhost/react": "^3.11.1",
     "@vitejs/plugin-react": "^5.0.0",
     "graphql": "^16.9.0",
     "graphql-ws": "^5.14.3",
